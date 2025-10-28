@@ -467,7 +467,7 @@
             </div>
 
             <div class="card connection-info">
-                <strong>Server:</strong> <code id="serverUrl">ws://localhost:4564</code><br>
+                <strong>Server:</strong> <code id="serverUrl">Connecting...</code><br>
                 <strong>Status:</strong> <span id="connectionStatus">Disconnected</span>
             </div>
 
@@ -552,7 +552,7 @@
             },
             lastFrameTime: performance.now(),
             fpsHistory: [],
-            serverUrl: 'http://localhost:4564'
+            serverUrl: window.location.origin  // Dynamically use the same host that served the page
         };
 
         // ============ DOM ELEMENTS ============

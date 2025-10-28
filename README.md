@@ -228,8 +228,8 @@ socketio.run(app, host='0.0.0.0', port=4564)
 Edit `client.html` to adjust:
 
 ```javascript
-// Server URL
-state.serverUrl = 'http://localhost:4564'
+// Server URL (automatically uses the host that served the page)
+state.serverUrl = window.location.origin  // Auto-detects localhost or network IP
 
 // Camera settings
 {
@@ -243,6 +243,8 @@ setTimeout(() => {
     requestAnimationFrame(processAndSendFrames);
 }, 100);  // 100ms = ~10 FPS
 ```
+
+**Note:** The server URL is dynamic - it automatically uses the same host/port that served the web page. This enables seamless local network access without manual configuration.
 
 ### Adjusting Detection Sensitivity
 
@@ -417,23 +419,41 @@ netstat -ano | findstr :4564   # Windows
 
 ### Local Network Access
 
-To allow other devices on your network to connect:
+The application **automatically works** on your local network! No configuration needed.
 
-1. **Find your local IP**
+#### How It Works
+
+The client uses `window.location.origin` to connect to the WebSocket, so it always connects to the server that served the page - whether that's localhost or a network IP.
+
+#### Steps to Access from Other Devices
+
+1. **Find your server's local IP**
 ```bash
 # macOS/Linux
 ifconfig | grep "inet "
 # Windows
 ipconfig
+
+# Look for something like: 192.168.1.100
 ```
 
-2. **Access from other devices**
-Simply visit:
+2. **Access from any device on your network**
+Simply visit (using your actual IP):
 ```
-http://192.168.1.X:4564
+http://192.168.1.100:4564
 ```
 
-The server will automatically serve the web interface to any device on your network.
+**That's it!** The web interface loads, and the WebSocket automatically connects to the correct server.
+
+#### Examples
+
+| Access From | URL | WebSocket Connects To | Works? |
+|-------------|-----|----------------------|--------|
+| Same machine | `http://localhost:4564` | `ws://localhost:4564` | ✅ Yes |
+| Phone on WiFi | `http://192.168.1.100:4564` | `ws://192.168.1.100:4564` | ✅ Yes |
+| Tablet on LAN | `http://10.0.0.50:4564` | `ws://10.0.0.50:4564` | ✅ Yes |
+
+No manual configuration required!
 
 ### Production Deployment
 
