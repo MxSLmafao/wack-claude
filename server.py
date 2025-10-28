@@ -373,7 +373,24 @@ def handle_ping():
 # HTTP Routes
 @app.route('/')
 def index():
-    """Serve the main HTML page"""
+    """Serve the main client application"""
+    try:
+        with open('client.html', 'r') as f:
+            return f.read()
+    except FileNotFoundError:
+        return '''
+        <html>
+        <body style="font-family: Arial; padding: 50px; background: #0f172a; color: #f1f5f9;">
+            <h1>❌ Error: client.html not found</h1>
+            <p>Please ensure client.html is in the same directory as server.py</p>
+        </body>
+        </html>
+        ''', 404
+
+
+@app.route('/status')
+def status():
+    """Server status page"""
     return '''
     <!DOCTYPE html>
     <html>
@@ -411,12 +428,14 @@ def index():
         </div>
         <h3>Available Endpoints:</h3>
         <ul>
+            <li><strong>Web Interface:</strong> <code>http://localhost:4564</code></li>
             <li><strong>WebSocket:</strong> <code>ws://localhost:4564</code></li>
-            <li><strong>HTTP:</strong> <code>http://localhost:4564</code></li>
+            <li><strong>Status:</strong> <code>http://localhost:4564/status</code> (this page)</li>
+            <li><strong>Health:</strong> <code>http://localhost:4564/health</code></li>
         </ul>
         <h3>Next Steps:</h3>
         <ol>
-            <li>Open <code>client.html</code> in your browser</li>
+            <li>Visit <code>http://localhost:4564</code> in your browser</li>
             <li>Click "Start Detection"</li>
             <li>Make gestures and expressions!</li>
         </ol>
@@ -444,10 +463,11 @@ if __name__ == '__main__':
     print("=" * 60)
     print("🚀 Starting Gesture Recognition Server")
     print("=" * 60)
-    print("Server: http://localhost:4564")
-    print("WebSocket: ws://localhost:4564")
-    print("Models: MediaPipe Hands + Face Mesh")
+    print("🌐 Web Interface: http://localhost:4564")
+    print("📡 WebSocket: ws://localhost:4564")
+    print("🤖 Models: MediaPipe Hands + Face Mesh")
     print("=" * 60)
-    print("\nPress Ctrl+C to stop the server\n")
+    print("\n✨ Open http://localhost:4564 in your browser to start!\n")
+    print("Press Ctrl+C to stop the server\n")
 
     socketio.run(app, host='0.0.0.0', port=4564, debug=True, allow_unsafe_werkzeug=True)

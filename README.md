@@ -89,31 +89,22 @@ python server.py
 You should see:
 ```
 🚀 Starting Gesture Recognition Server
-Server: http://localhost:4564
-WebSocket: ws://localhost:4564
-Models: MediaPipe Hands + Face Mesh
+============================================================
+🌐 Web Interface: http://localhost:4564
+📡 WebSocket: ws://localhost:4564
+🤖 Models: MediaPipe Hands + Face Mesh
+============================================================
+
+✨ Open http://localhost:4564 in your browser to start!
 ```
 
-#### Step 2: Open the Client
-Open `client.html` in your web browser:
+#### Step 2: Open Your Browser
+Simply visit **http://localhost:4564** in your web browser (Chrome, Firefox, Edge, or Safari).
 
-**Option A: Direct open**
-```bash
-# Just double-click client.html or
-open client.html  # macOS
-start client.html # Windows
-xdg-open client.html # Linux
-```
-
-**Option B: Using a local server (recommended for some browsers)**
-```bash
-# In a new terminal
-python -m http.server 8000
-# Then visit http://localhost:8000/client.html
-```
+The server will automatically serve the web interface!
 
 #### Step 3: Start Detection
-1. Wait for "Connected to server ✓" status
+1. Wait for "Connected to server ✓" status (should connect automatically)
 2. Click "Start Detection"
 3. Allow camera access when prompted
 4. Make gestures and expressions!
@@ -137,22 +128,27 @@ wack-claude/
 
 The server handles all the heavy lifting:
 
-1. **MediaPipe Initialization**
+1. **Web Server**
+   - Serves the client web interface at http://localhost:4564
+   - Provides status and health check endpoints
+   - Single entry point for the entire application
+
+2. **MediaPipe Initialization**
    - Loads Hands model (max 2 hands, high complexity)
    - Loads Face Mesh model (refined landmarks)
    - Configures 0.7+ confidence thresholds
 
-2. **WebSocket Communication**
+3. **WebSocket Communication**
    - Receives frames from client via Socket.IO
    - Processes each frame with MediaPipe
    - Sends detection results back to client
 
-3. **Detection Algorithms**
+4. **Detection Algorithms**
    - `GestureDetector.detect()` - Analyzes 21 hand landmarks
    - `ExpressionDetector.detect()` - Analyzes 468 face landmarks
    - Uses distance calculations, finger extension detection, ratios
 
-4. **Frame Processing**
+5. **Frame Processing**
    - Decodes base64 images from client
    - Converts to OpenCV format
    - Runs MediaPipe inference
@@ -292,7 +288,11 @@ confidence=0.75
 #### HTTP Endpoints
 
 **`GET /`**
-- Server status page
+- Serves the main web interface (client.html)
+- Main entry point for the application
+
+**`GET /status`**
+- Server status and information page
 - Shows available endpoints and instructions
 
 **`GET /health`**
@@ -427,15 +427,13 @@ ifconfig | grep "inet "
 ipconfig
 ```
 
-2. **Update client.html**
-```javascript
-state.serverUrl = 'http://192.168.1.X:4564'  // Your IP
+2. **Access from other devices**
+Simply visit:
+```
+http://192.168.1.X:4564
 ```
 
-3. **Access from other devices**
-```
-http://192.168.1.X:8000/client.html
-```
+The server will automatically serve the web interface to any device on your network.
 
 ### Production Deployment
 
@@ -627,14 +625,15 @@ pip install -r requirements.txt
 # Start server
 python server.py
 
-# Open client
-open client.html
+# Open browser and visit
+# http://localhost:4564
 
 # Check if server is running
 curl http://localhost:4564/health
 ```
 
 **Default URLs:**
-- Server: `http://localhost:4564`
-- Client: `file:///.../client.html` or `http://localhost:8000/client.html`
+- Web Interface: `http://localhost:4564`
 - WebSocket: `ws://localhost:4564`
+- Status Page: `http://localhost:4564/status`
+- Health Check: `http://localhost:4564/health`
