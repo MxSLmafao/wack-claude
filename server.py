@@ -32,16 +32,16 @@ hands = mp_hands.Hands(
     static_image_mode=False,
     max_num_hands=2,
     model_complexity=1,
-    min_detection_confidence=0.7,
-    min_tracking_confidence=0.7
+    min_detection_confidence=0.5,  # Lowered for better detection
+    min_tracking_confidence=0.5     # Lowered for smoother tracking
 )
 
 face_mesh = mp_face_mesh.FaceMesh(
     static_image_mode=False,
     max_num_faces=1,
     refine_landmarks=True,
-    min_detection_confidence=0.7,
-    min_tracking_confidence=0.7
+    min_detection_confidence=0.5,  # Lowered for better detection
+    min_tracking_confidence=0.5     # Lowered for smoother tracking
 )
 
 # Gesture and Expression Definitions
@@ -71,7 +71,7 @@ EXPRESSIONS = {
 
 
 class GestureDetector:
-    """Hand gesture detection algorithms"""
+    """Hand gesture detection algorithms - Improved version"""
 
     @staticmethod
     def distance(p1, p2) -> float:
@@ -79,104 +79,157 @@ class GestureDetector:
         return np.sqrt((p1.x - p2.x)**2 + (p1.y - p2.y)**2 + (p1.z - p2.z)**2)
 
     @staticmethod
-    def is_finger_extended(tip, pip) -> bool:
-        """Check if a finger is extended"""
-        return tip.y < pip.y - 0.02
+    def is_finger_extended(tip, pip, mcp) -> bool:
+        """Check if a finger is extended using multiple joints"""
+        # Finger is extended if tip is higher than pip and pip is higher than mcp
+        return tip.y < pip.y and pip.y < mcp.y
+
+    @staticmethod
+    def is_thumb_extended(thumb_tip, thumb_ip, thumb_mcp, index_mcp, is_right_hand) -> bool:
+        """Check if thumb is extended considering handedness"""
+        # Distance between thumb tip and index base
+        dist_to_index = GestureDetector.distance(thumb_tip, index_mcp)
+
+        # For right hand, thumb extends to the left; for left hand, to the right
+        if is_right_hand:
+            horizontal_extended = thumb_tip.x < thumb_ip.x
+        else:
+            horizontal_extended = thumb_tip.x > thumb_ip.x
+
+        return dist_to_index > 0.1 or horizontal_extended
 
     @staticmethod
     def detect(landmarks, handedness) -> Optional[Detection]:
-        """Detect hand gesture from landmarks"""
+        """Detect hand gesture from landmarks with improved accuracy"""
         if not landmarks:
             return None
 
-        # Extract key landmarks
-        thumb_tip = landmarks[4]
-        thumb_ip = landmarks[3]
-        index_tip = landmarks[8]
-        index_pip = landmarks[6]
-        middle_tip = landmarks[12]
-        middle_pip = landmarks[10]
-        ring_tip = landmarks[16]
-        ring_pip = landmarks[14]
-        pinky_tip = landmarks[20]
-        pinky_pip = landmarks[18]
+        # Determine if it's a right hand
+        is_right_hand = True
+        if handedness and hasattr(handedness, 'classification'):
+            is_right_hand = handedness.classification[0].label == 'Right'
+
+        # Extract all key landmarks
         wrist = landmarks[0]
 
-        # Check finger states
-        finger_states = {
-            'thumb': thumb_tip.x < thumb_ip.x - 0.02 or thumb_tip.x > thumb_ip.x + 0.02,
-            'index': GestureDetector.is_finger_extended(index_tip, index_pip),
-            'middle': GestureDetector.is_finger_extended(middle_tip, middle_pip),
-            'ring': GestureDetector.is_finger_extended(ring_tip, ring_pip),
-            'pinky': GestureDetector.is_finger_extended(pinky_tip, pinky_pip)
-        }
+        thumb_cmc = landmarks[1]
+        thumb_mcp = landmarks[2]
+        thumb_ip = landmarks[3]
+        thumb_tip = landmarks[4]
 
-        # THUMBS UP: Only thumb extended, others down
-        if (finger_states['thumb'] and thumb_tip.y < wrist.y and
-            not finger_states['index'] and not finger_states['middle'] and
-            not finger_states['ring'] and not finger_states['pinky']):
-            return Detection(
-                emoji=GESTURES['THUMBS_UP']['emoji'],
-                label=GESTURES['THUMBS_UP']['label'],
-                confidence=0.95,
-                type='hand'
+        index_mcp = landmarks[5]
+        index_pip = landmarks[6]
+        index_dip = landmarks[7]
+        index_tip = landmarks[8]
+
+        middle_mcp = landmarks[9]
+        middle_pip = landmarks[10]
+        middle_dip = landmarks[11]
+        middle_tip = landmarks[12]
+
+        ring_mcp = landmarks[13]
+        ring_pip = landmarks[14]
+        ring_dip = landmarks[15]
+        ring_tip = landmarks[16]
+
+        pinky_mcp = landmarks[17]
+        pinky_pip = landmarks[18]
+        pinky_dip = landmarks[19]
+        pinky_tip = landmarks[20]
+
+        # Improved finger state detection
+        thumb_extended = GestureDetector.is_thumb_extended(thumb_tip, thumb_ip, thumb_mcp, index_mcp, is_right_hand)
+        index_extended = GestureDetector.is_finger_extended(index_tip, index_pip, index_mcp)
+        middle_extended = GestureDetector.is_finger_extended(middle_tip, middle_pip, middle_mcp)
+        ring_extended = GestureDetector.is_finger_extended(ring_tip, ring_pip, ring_mcp)
+        pinky_extended = GestureDetector.is_finger_extended(pinky_tip, pinky_pip, pinky_mcp)
+
+        # Count extended fingers
+        extended_count = sum([index_extended, middle_extended, ring_extended, pinky_extended])
+
+        # FIST: All fingers curled (check first for priority)
+        if not index_extended and not middle_extended and not ring_extended and not pinky_extended:
+            # Verify fingers are actually curled toward palm
+            fingertips_close = (
+                GestureDetector.distance(index_tip, wrist) < 0.15 and
+                GestureDetector.distance(middle_tip, wrist) < 0.15
             )
+            if fingertips_close or extended_count == 0:
+                return Detection(
+                    emoji=GESTURES['FIST']['emoji'],
+                    label=GESTURES['FIST']['label'],
+                    confidence=0.93,
+                    type='hand'
+                )
 
-        # PEACE SIGN: Index and middle extended, others down
-        if (finger_states['index'] and finger_states['middle'] and
-            not finger_states['ring'] and not finger_states['pinky']):
+        # THUMBS UP: Only thumb extended vertically, others curled
+        if thumb_extended and extended_count == 0:
+            # Thumb must be above wrist
+            thumb_vertical = thumb_tip.y < wrist.y - 0.05
+            if thumb_vertical:
+                return Detection(
+                    emoji=GESTURES['THUMBS_UP']['emoji'],
+                    label=GESTURES['THUMBS_UP']['label'],
+                    confidence=0.96,
+                    type='hand'
+                )
+
+        # PEACE SIGN: Only index and middle extended
+        if index_extended and middle_extended and not ring_extended and not pinky_extended:
+            # Check that index and middle are separated (V shape)
+            finger_spread = GestureDetector.distance(index_tip, middle_tip)
+            if finger_spread > 0.03:
+                return Detection(
+                    emoji=GESTURES['PEACE']['emoji'],
+                    label=GESTURES['PEACE']['label'],
+                    confidence=0.94,
+                    type='hand'
+                )
+
+        # LOVE YOU SIGN: Thumb, index, and pinky extended
+        if thumb_extended and index_extended and pinky_extended and not middle_extended and not ring_extended:
             return Detection(
-                emoji=GESTURES['PEACE']['emoji'],
-                label=GESTURES['PEACE']['label'],
+                emoji=GESTURES['LOVE_YOU']['emoji'],
+                label=GESTURES['LOVE_YOU']['label'],
                 confidence=0.92,
                 type='hand'
             )
 
-        # LOVE YOU SIGN: Thumb, index, and pinky extended
-        if (finger_states['thumb'] and finger_states['index'] and finger_states['pinky'] and
-            not finger_states['middle'] and not finger_states['ring']):
-            return Detection(
-                emoji=GESTURES['LOVE_YOU']['emoji'],
-                label=GESTURES['LOVE_YOU']['label'],
-                confidence=0.90,
-                type='hand'
+        # OPEN PALM vs AIRPLANE: All four fingers extended
+        if index_extended and middle_extended and ring_extended and pinky_extended:
+            # Measure the span from index to pinky
+            hand_span = GestureDetector.distance(index_tip, pinky_tip)
+
+            # Check if fingers are spread wide
+            fingers_spread = (
+                GestureDetector.distance(index_tip, middle_tip) > 0.03 and
+                GestureDetector.distance(middle_tip, ring_tip) > 0.025 and
+                GestureDetector.distance(ring_tip, pinky_tip) > 0.03
             )
 
-        # OPEN PALM: All fingers extended and spread
-        if (finger_states['index'] and finger_states['middle'] and
-            finger_states['ring'] and finger_states['pinky']):
-            spread = GestureDetector.distance(index_tip, pinky_tip)
-            if spread > 0.15:
-                # AIRPLANE: More spread with thumb
-                if spread > 0.2 and finger_states['thumb']:
-                    return Detection(
-                        emoji=GESTURES['AIRPLANE']['emoji'],
-                        label=GESTURES['AIRPLANE']['label'],
-                        confidence=0.85,
-                        type='hand'
-                    )
+            # AIRPLANE: Wide spread with thumb extended and fingers splayed
+            if hand_span > 0.18 and fingers_spread and thumb_extended:
                 return Detection(
-                    emoji=GESTURES['OPEN_PALM']['emoji'],
-                    label=GESTURES['OPEN_PALM']['label'],
-                    confidence=0.88,
+                    emoji=GESTURES['AIRPLANE']['emoji'],
+                    label=GESTURES['AIRPLANE']['label'],
+                    confidence=0.89,
                     type='hand'
                 )
 
-        # FIST: All fingers down
-        if (not finger_states['index'] and not finger_states['middle'] and
-            not finger_states['ring'] and not finger_states['pinky']):
-            return Detection(
-                emoji=GESTURES['FIST']['emoji'],
-                label=GESTURES['FIST']['label'],
-                confidence=0.90,
-                type='hand'
-            )
+            # OPEN PALM: All fingers up but less spread
+            if hand_span > 0.12:
+                return Detection(
+                    emoji=GESTURES['OPEN_PALM']['emoji'],
+                    label=GESTURES['OPEN_PALM']['label'],
+                    confidence=0.90,
+                    type='hand'
+                )
 
         return None
 
 
 class ExpressionDetector:
-    """Facial expression detection algorithms"""
+    """Facial expression detection algorithms - Improved version"""
 
     @staticmethod
     def distance(p1, p2) -> float:
@@ -185,78 +238,135 @@ class ExpressionDetector:
 
     @staticmethod
     def detect(landmarks) -> Optional[Detection]:
-        """Detect facial expression from landmarks"""
+        """Detect facial expression from landmarks with improved accuracy"""
         if not landmarks:
             return None
 
-        # Key facial landmarks
-        left_eye = landmarks[33]
-        right_eye = landmarks[263]
+        # Key facial landmarks (MediaPipe Face Mesh indices)
+        # Eyes
+        left_eye_inner = landmarks[133]
+        left_eye_outer = landmarks[33]
         left_eye_top = landmarks[159]
         left_eye_bottom = landmarks[145]
+
+        right_eye_inner = landmarks[362]
+        right_eye_outer = landmarks[263]
         right_eye_top = landmarks[386]
         right_eye_bottom = landmarks[374]
+
+        # Mouth
         left_mouth = landmarks[61]
         right_mouth = landmarks[291]
-        top_lip = landmarks[13]
-        bottom_lip = landmarks[14]
-        left_eyebrow = landmarks[70]
-        right_eyebrow = landmarks[300]
-        nose_tip = landmarks[1]
+        top_lip_top = landmarks[13]
+        top_lip_bottom = landmarks[14]
+        bottom_lip_top = landmarks[13]
+        bottom_lip_bottom = landmarks[14]
+        mouth_center_top = landmarks[13]
+        mouth_center_bottom = landmarks[14]
 
-        # Calculate metrics
+        # Eyebrows
+        left_eyebrow_inner = landmarks[107]
+        left_eyebrow_outer = landmarks[66]
+        right_eyebrow_inner = landmarks[336]
+        right_eyebrow_outer = landmarks[296]
+
+        # Reference points
+        nose_tip = landmarks[1]
+        nose_bridge = landmarks[6]
+
+        # Calculate comprehensive metrics
         left_eye_height = ExpressionDetector.distance(left_eye_top, left_eye_bottom)
         right_eye_height = ExpressionDetector.distance(right_eye_top, right_eye_bottom)
+        left_eye_width = ExpressionDetector.distance(left_eye_inner, left_eye_outer)
+        right_eye_width = ExpressionDetector.distance(right_eye_inner, right_eye_outer)
+
         mouth_width = ExpressionDetector.distance(left_mouth, right_mouth)
-        mouth_height = ExpressionDetector.distance(top_lip, bottom_lip)
+        mouth_height = ExpressionDetector.distance(mouth_center_top, mouth_center_bottom)
         mouth_aspect_ratio = mouth_height / mouth_width if mouth_width > 0 else 0
 
-        # WINKING: One eye significantly smaller than the other
-        eye_ratio = abs(left_eye_height - right_eye_height) / max(left_eye_height, right_eye_height)
-        if eye_ratio > 0.3:
+        # Average eye metrics for normalization
+        avg_eye_height = (left_eye_height + right_eye_height) / 2
+        avg_eye_width = (left_eye_width + right_eye_width) / 2
+
+        # Eye aspect ratios
+        left_ear = left_eye_height / left_eye_width if left_eye_width > 0 else 0
+        right_ear = right_eye_height / right_eye_width if right_eye_width > 0 else 0
+
+        # WINKING: One eye closed or significantly smaller
+        eye_height_diff = abs(left_eye_height - right_eye_height)
+        eye_ratio = eye_height_diff / max(left_eye_height, right_eye_height) if max(left_eye_height, right_eye_height) > 0 else 0
+
+        # Improved wink detection - check if one eye is significantly smaller
+        if eye_ratio > 0.4 or (left_ear < 0.15 and right_ear > 0.2) or (right_ear < 0.15 and left_ear > 0.2):
             return Detection(
                 emoji=EXPRESSIONS['WINK']['emoji'],
                 label=EXPRESSIONS['WINK']['label'],
-                confidence=0.88,
+                confidence=0.91,
                 type='face'
             )
 
-        # SURPRISED: Large mouth opening and wide eyes
-        if mouth_aspect_ratio > 0.35 and left_eye_height > 0.015 and right_eye_height > 0.015:
-            return Detection(
-                emoji=EXPRESSIONS['SURPRISED']['emoji'],
-                label=EXPRESSIONS['SURPRISED']['label'],
-                confidence=0.90,
-                type='face'
-            )
-
-        # TONGUE OUT: Large mouth opening with specific shape
-        if mouth_aspect_ratio > 0.3 and bottom_lip.y > top_lip.y + 0.02:
-            return Detection(
-                emoji=EXPRESSIONS['TONGUE_OUT']['emoji'],
-                label=EXPRESSIONS['TONGUE_OUT']['label'],
-                confidence=0.85,
-                type='face'
-            )
-
-        # SMILE: Wide mouth, upturned corners
-        if mouth_width > 0.12 and mouth_aspect_ratio < 0.25:
-            if left_mouth.y < nose_tip.y and right_mouth.y < nose_tip.y:
+        # SURPRISED: Large mouth opening with wide eyes
+        # Both mouth very open and eyes wide open
+        if mouth_aspect_ratio > 0.4 and avg_eye_height > 0.012:
+            # Additional check: mouth is notably wider than normal
+            mouth_very_open = mouth_height > 0.04
+            if mouth_very_open:
                 return Detection(
-                    emoji=EXPRESSIONS['SMILE']['emoji'],
-                    label=EXPRESSIONS['SMILE']['label'],
+                    emoji=EXPRESSIONS['SURPRISED']['emoji'],
+                    label=EXPRESSIONS['SURPRISED']['label'],
+                    confidence=0.93,
+                    type='face'
+                )
+
+        # TONGUE OUT: Mouth open with specific characteristics
+        # Larger mouth opening than smile, but not as wide as surprised
+        if mouth_aspect_ratio > 0.25 and mouth_aspect_ratio < 0.5:
+            # Check for vertical mouth opening (tongue out position)
+            mouth_somewhat_open = mouth_height > 0.025
+            if mouth_somewhat_open:
+                return Detection(
+                    emoji=EXPRESSIONS['TONGUE_OUT']['emoji'],
+                    label=EXPRESSIONS['TONGUE_OUT']['label'],
                     confidence=0.87,
                     type='face'
                 )
 
-        # ANGRY: Eyebrows lowered, mouth compressed
-        eyebrows_lowered = (left_eyebrow.y > left_eye.y - 0.02 and
-                           right_eyebrow.y > right_eye.y - 0.02)
-        if eyebrows_lowered and mouth_aspect_ratio < 0.15:
+        # SMILE: Wide mouth with upturned corners, closed or slightly open
+        # Mouth corners should be higher than center bottom
+        mouth_corners_up = (left_mouth.y < mouth_center_bottom.y and
+                           right_mouth.y < mouth_center_bottom.y)
+
+        # Wide smile detection
+        smile_width = mouth_width > 0.10
+        smile_not_too_open = mouth_aspect_ratio < 0.3
+
+        if smile_width and smile_not_too_open and mouth_corners_up:
+            # Additional verification: corners above nose tip indicates strong smile
+            strong_smile = left_mouth.y < nose_tip.y and right_mouth.y < nose_tip.y
+            confidence = 0.92 if strong_smile else 0.86
+
+            return Detection(
+                emoji=EXPRESSIONS['SMILE']['emoji'],
+                label=EXPRESSIONS['SMILE']['label'],
+                confidence=confidence,
+                type='face'
+            )
+
+        # ANGRY: Eyebrows lowered and furrowed, mouth tight or frowning
+        # Check eyebrow positions relative to eyes
+        left_brow_lowered = left_eyebrow_inner.y > left_eye_top.y - 0.015
+        right_brow_lowered = right_eyebrow_inner.y > right_eye_top.y - 0.015
+
+        # Mouth characteristics for anger
+        mouth_tight = mouth_aspect_ratio < 0.12
+        mouth_corners_down = (left_mouth.y > mouth_center_bottom.y - 0.01 and
+                             right_mouth.y > mouth_center_bottom.y - 0.01)
+
+        if (left_brow_lowered and right_brow_lowered) and (mouth_tight or mouth_corners_down):
             return Detection(
                 emoji=EXPRESSIONS['ANGRY']['emoji'],
                 label=EXPRESSIONS['ANGRY']['label'],
-                confidence=0.82,
+                confidence=0.85,
                 type='face'
             )
 
