@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gesture & Expression Recognition - Client</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-tertiary: #334155;
+            --text-primary: #f1f5f9;
+            --text-secondary: #cbd5e1;
+            --accent: #3b82f6;
+            --accent-hover: #2563eb;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --error: #ef4444;
+            --border: #475569;
+        }
+
+        [data-theme="light"] {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8fafc;
+            --bg-tertiary: #e2e8f0;
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --border: #cbd5e1;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            transition: background 0.3s, color 0.3s;
+        }
+
+        header {
+            background: var(--bg-secondary);
+            padding: 1.5rem 2rem;
+            border-bottom: 2px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-title {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        h1 {
+            font-size: 1.75rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent), var(--success));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .server-badge {
+            font-size: 0.75rem;
+            background: var(--bg-tertiary);
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            color: var(--text-secondary);
+        }
+
+        .theme-toggle {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.5rem;
+            transition: all 0.3s;
+        }
+
+        .theme-toggle:hover {
+            background: var(--accent);
+            transform: scale(1.05);
+        }
+
+        .container {
+            display: flex;
+            flex: 1;
+            gap: 2rem;
+            padding: 2rem;
+            max-width: 1800px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .camera-section {
+            flex: 0 0 640px;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .video-container {
+            position: relative;
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        #webcam {
+            width: 100%;
+            height: auto;
+            display: block;
+            transform: scaleX(-1);
+        }
+
+        .controls {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        button {
+            flex: 1;
+            min-width: 150px;
+            padding: 0.875rem 1.5rem;
+            font-size: 1rem;
+            font-weight: 600;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .btn-start {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-start:hover:not(:disabled) {
+            background: #059669;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+        }
+
+        .btn-stop {
+            background: var(--error);
+            color: white;
+        }
+
+        .btn-stop:hover:not(:disabled) {
+            background: #dc2626;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .results-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .card {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            padding: 1.5rem;
+            border: 1px solid var(--border);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .card-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: var(--accent);
+        }
+
+        .detection-display {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1.5rem;
+            padding: 2rem;
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            min-height: 300px;
+            justify-content: center;
+        }
+
+        .detection-emoji {
+            font-size: 8rem;
+            animation: scaleIn 0.3s ease-out;
+            filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.2));
+        }
+
+        @keyframes scaleIn {
+            from {
+                transform: scale(0.8);
+                opacity: 0;
+            }
+            to {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        .detection-label {
+            font-size: 1.5rem;
+            font-weight: 700;
+            text-align: center;
+        }
+
+        .detection-confidence {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            width: 100%;
+            max-width: 300px;
+        }
+
+        .confidence-bar {
+            flex: 1;
+            height: 8px;
+            background: var(--bg-primary);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .confidence-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--success), var(--accent));
+            transition: width 0.3s ease;
+            border-radius: 4px;
+        }
+
+        .confidence-value {
+            font-weight: 600;
+            min-width: 50px;
+            text-align: right;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+
+        .status-disconnected {
+            background: rgba(239, 68, 68, 0.2);
+            color: var(--error);
+        }
+
+        .status-connected {
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--success);
+        }
+
+        .status-detecting {
+            background: rgba(59, 130, 246, 0.2);
+            color: var(--accent);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .history-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .history-item {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 0.75rem;
+            background: var(--bg-tertiary);
+            border-radius: 6px;
+            transition: transform 0.2s;
+        }
+
+        .history-item:hover {
+            transform: translateX(5px);
+        }
+
+        .history-emoji {
+            font-size: 2rem;
+        }
+
+        .history-details {
+            flex: 1;
+        }
+
+        .history-name {
+            font-weight: 600;
+        }
+
+        .history-time {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+        }
+
+        .stat-item {
+            background: var(--bg-tertiary);
+            padding: 1rem;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        .stat-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-top: 0.25rem;
+        }
+
+        .connection-info {
+            background: var(--bg-tertiary);
+            padding: 1rem;
+            border-radius: 8px;
+            font-size: 0.875rem;
+        }
+
+        .connection-info code {
+            background: var(--bg-primary);
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+
+        .instructions {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(16, 185, 129, 0.1));
+            border-left: 4px solid var(--accent);
+            padding: 1rem;
+            border-radius: 8px;
+        }
+
+        .instructions h3 {
+            margin-bottom: 0.5rem;
+            color: var(--accent);
+        }
+
+        .instructions ul {
+            margin-left: 1.5rem;
+            color: var(--text-secondary);
+        }
+
+        .instructions li {
+            margin: 0.25rem 0;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 1200px) {
+            .container {
+                flex-direction: column;
+            }
+
+            .camera-section {
+                flex: 1;
+                max-width: 100%;
+            }
+        }
+
+        @media (max-width: 768px) {
+            header {
+                padding: 1rem;
+            }
+
+            h1 {
+                font-size: 1.25rem;
+            }
+
+            .container {
+                padding: 1rem;
+                gap: 1rem;
+            }
+
+            .detection-emoji {
+                font-size: 5rem;
+            }
+        }
+
+        /* Scrollbar Styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-tertiary);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--accent);
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="header-title">
+            <h1>🎭 Gesture & Expression Recognition</h1>
+            <span class="server-badge">Client-Server Mode</span>
+        </div>
+        <button class="theme-toggle" id="themeToggle" title="Toggle theme">🌙</button>
+    </header>
+
+    <div class="container">
+        <div class="camera-section">
+            <div class="video-container">
+                <video id="webcam" autoplay playsinline></video>
+            </div>
+
+            <div class="controls">
+                <button class="btn-start" id="startBtn">
+                    <span>▶</span> Start Detection
+                </button>
+                <button class="btn-stop" id="stopBtn" disabled>
+                    <span>⏹</span> Stop Detection
+                </button>
+            </div>
+
+            <div class="card connection-info">
+                <strong>Server:</strong> <code id="serverUrl">ws://localhost:5000</code><br>
+                <strong>Status:</strong> <span id="connectionStatus">Disconnected</span>
+            </div>
+
+            <div class="card instructions">
+                <h3>📋 Instructions</h3>
+                <ul>
+                    <li><strong>Server:</strong> Make sure Python server is running (<code>python server.py</code>)</li>
+                    <li><strong>Gestures:</strong> Airplane ✈️, thumbs up 👍, peace ✌️, fist 👊, palm 🖐️</li>
+                    <li><strong>Expressions:</strong> Smile 😊, tongue 😛, surprised 😮, wink 😉, angry 😠</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="results-section">
+            <div class="card">
+                <div class="card-title">Current Detection</div>
+                <div class="detection-display">
+                    <div id="statusIndicator" class="status-indicator status-disconnected">
+                        <div class="status-dot"></div>
+                        <span id="statusText">Not connected</span>
+                    </div>
+                    <div id="detectionEmoji" class="detection-emoji">👋</div>
+                    <div id="detectionLabel" class="detection-label">Waiting to start...</div>
+                    <div class="detection-confidence">
+                        <div class="confidence-bar">
+                            <div class="confidence-fill" id="confidenceFill" style="width: 0%"></div>
+                        </div>
+                        <span class="confidence-value" id="confidenceValue">0%</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Statistics</div>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-value" id="totalDetections">0</div>
+                        <div class="stat-label">Total Detections</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="fpsCounter">0</div>
+                        <div class="stat-label">FPS (Client)</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="handDetections">0</div>
+                        <div class="stat-label">Hand Gestures</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="faceDetections">0</div>
+                        <div class="stat-label">Expressions</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Detection History</div>
+                <div class="history-list" id="historyList">
+                    <div style="text-align: center; color: var(--text-secondary); padding: 2rem;">
+                        No detections yet. Connect and start the camera!
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Socket.IO Client Library -->
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+
+    <script>
+        // ============ APPLICATION STATE ============
+        const state = {
+            socket: null,
+            isConnected: false,
+            isRunning: false,
+            detectionHistory: [],
+            stats: {
+                total: 0,
+                hands: 0,
+                faces: 0,
+                fps: 0
+            },
+            lastFrameTime: performance.now(),
+            fpsHistory: [],
+            serverUrl: 'http://localhost:5000'
+        };
+
+        // ============ DOM ELEMENTS ============
+        const elements = {
+            webcam: document.getElementById('webcam'),
+            startBtn: document.getElementById('startBtn'),
+            stopBtn: document.getElementById('stopBtn'),
+            themeToggle: document.getElementById('themeToggle'),
+            statusIndicator: document.getElementById('statusIndicator'),
+            statusText: document.getElementById('statusText'),
+            detectionEmoji: document.getElementById('detectionEmoji'),
+            detectionLabel: document.getElementById('detectionLabel'),
+            confidenceFill: document.getElementById('confidenceFill'),
+            confidenceValue: document.getElementById('confidenceValue'),
+            historyList: document.getElementById('historyList'),
+            totalDetections: document.getElementById('totalDetections'),
+            fpsCounter: document.getElementById('fpsCounter'),
+            handDetections: document.getElementById('handDetections'),
+            faceDetections: document.getElementById('faceDetections'),
+            serverUrl: document.getElementById('serverUrl'),
+            connectionStatus: document.getElementById('connectionStatus')
+        };
+
+        // ============ WEBSOCKET CONNECTION ============
+        function connectToServer() {
+            try {
+                console.log('Connecting to server...');
+                state.socket = io(state.serverUrl, {
+                    transports: ['websocket', 'polling'],
+                    reconnection: true,
+                    reconnectionDelay: 1000,
+                    reconnectionAttempts: 5
+                });
+
+                state.socket.on('connect', () => {
+                    console.log('✅ Connected to server');
+                    state.isConnected = true;
+                    updateStatus('connected', 'Connected to server');
+                    elements.connectionStatus.textContent = 'Connected ✓';
+                    elements.connectionStatus.style.color = 'var(--success)';
+                });
+
+                state.socket.on('disconnect', () => {
+                    console.log('❌ Disconnected from server');
+                    state.isConnected = false;
+                    updateStatus('disconnected', 'Disconnected from server');
+                    elements.connectionStatus.textContent = 'Disconnected ✗';
+                    elements.connectionStatus.style.color = 'var(--error)';
+                });
+
+                state.socket.on('detection', (data) => {
+                    handleDetectionResult(data);
+                });
+
+                state.socket.on('error', (error) => {
+                    console.error('Server error:', error);
+                    updateStatus('disconnected', 'Server error');
+                });
+
+                state.socket.on('status', (data) => {
+                    console.log('Server status:', data);
+                });
+
+            } catch (error) {
+                console.error('Connection error:', error);
+                updateStatus('disconnected', 'Failed to connect');
+            }
+        }
+
+        // ============ CAMERA SETUP ============
+        async function startCamera() {
+            try {
+                updateStatus('detecting', 'Starting camera...');
+
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 },
+                        facingMode: 'user'
+                    }
+                });
+
+                elements.webcam.srcObject = stream;
+
+                await new Promise((resolve) => {
+                    elements.webcam.onloadedmetadata = resolve;
+                });
+
+                state.isRunning = true;
+                elements.startBtn.disabled = true;
+                elements.stopBtn.disabled = false;
+
+                updateStatus('detecting', 'Detecting...');
+
+                // Start sending frames to server
+                processAndSendFrames();
+
+            } catch (error) {
+                console.error('Camera error:', error);
+                updateStatus('disconnected', 'Camera access denied');
+            }
+        }
+
+        function stopCamera() {
+            state.isRunning = false;
+
+            if (elements.webcam.srcObject) {
+                elements.webcam.srcObject.getTracks().forEach(track => track.stop());
+                elements.webcam.srcObject = null;
+            }
+
+            elements.startBtn.disabled = false;
+            elements.stopBtn.disabled = true;
+
+            updateStatus('connected', 'Stopped');
+        }
+
+        // ============ FRAME PROCESSING ============
+        let canvas = document.createElement('canvas');
+        let ctx = canvas.getContext('2d');
+
+        function processAndSendFrames() {
+            if (!state.isRunning || !state.isConnected) return;
+
+            // Calculate FPS
+            const currentTime = performance.now();
+            const deltaTime = currentTime - state.lastFrameTime;
+            const fps = Math.round(1000 / deltaTime);
+            state.fpsHistory.push(fps);
+            if (state.fpsHistory.length > 10) state.fpsHistory.shift();
+            state.stats.fps = Math.round(state.fpsHistory.reduce((a, b) => a + b) / state.fpsHistory.length);
+            state.lastFrameTime = currentTime;
+            elements.fpsCounter.textContent = state.stats.fps;
+
+            // Capture frame from video
+            canvas.width = elements.webcam.videoWidth;
+            canvas.height = elements.webcam.videoHeight;
+            ctx.drawImage(elements.webcam, 0, 0);
+
+            // Convert to base64
+            const imageData = canvas.toDataURL('image/jpeg', 0.8);
+
+            // Send to server
+            if (state.socket && state.isConnected) {
+                state.socket.emit('frame', { image: imageData });
+            }
+
+            // Continue loop (throttled to ~10 FPS for server processing)
+            setTimeout(() => {
+                requestAnimationFrame(processAndSendFrames);
+            }, 100);
+        }
+
+        // ============ HANDLE DETECTION RESULTS ============
+        function handleDetectionResult(data) {
+            if (data.error) {
+                console.error('Detection error:', data.error);
+                return;
+            }
+
+            if (data.detection) {
+                const detection = data.detection;
+
+                // Update display
+                elements.detectionEmoji.textContent = detection.emoji;
+                elements.detectionLabel.textContent = detection.label;
+                elements.confidenceFill.style.width = `${detection.confidence * 100}%`;
+                elements.confidenceValue.textContent = `${Math.round(detection.confidence * 100)}%`;
+
+                // Update stats
+                state.stats.total++;
+                if (detection.type === 'hand') state.stats.hands++;
+                if (detection.type === 'face') state.stats.faces++;
+
+                elements.totalDetections.textContent = state.stats.total;
+                elements.handDetections.textContent = state.stats.hands;
+                elements.faceDetections.textContent = state.stats.faces;
+
+                // Add to history
+                addToHistory(detection);
+            }
+        }
+
+        // ============ UI UPDATE FUNCTIONS ============
+        function addToHistory(detection) {
+            const historyItem = {
+                emoji: detection.emoji,
+                label: detection.label,
+                confidence: detection.confidence,
+                timestamp: new Date().toLocaleTimeString()
+            };
+
+            state.detectionHistory.unshift(historyItem);
+            if (state.detectionHistory.length > 10) state.detectionHistory.pop();
+
+            renderHistory();
+        }
+
+        function renderHistory() {
+            if (state.detectionHistory.length === 0) {
+                elements.historyList.innerHTML = `
+                    <div style="text-align: center; color: var(--text-secondary); padding: 2rem;">
+                        No detections yet. Connect and start the camera!
+                    </div>
+                `;
+                return;
+            }
+
+            elements.historyList.innerHTML = state.detectionHistory.map(item => `
+                <div class="history-item">
+                    <div class="history-emoji">${item.emoji}</div>
+                    <div class="history-details">
+                        <div class="history-name">${item.label}</div>
+                        <div class="history-time">${item.timestamp} • ${Math.round(item.confidence * 100)}% confidence</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function updateStatus(status, text) {
+            elements.statusIndicator.className = `status-indicator status-${status}`;
+            elements.statusText.textContent = text;
+        }
+
+        // ============ THEME TOGGLE ============
+        elements.themeToggle.addEventListener('click', () => {
+            const currentTheme = document.body.getAttribute('data-theme');
+            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+            document.body.setAttribute('data-theme', newTheme);
+            elements.themeToggle.textContent = newTheme === 'light' ? '🌙' : '☀️';
+        });
+
+        // ============ EVENT LISTENERS ============
+        elements.startBtn.addEventListener('click', async () => {
+            if (!state.isConnected) {
+                alert('Please wait for server connection or check if server is running.');
+                return;
+            }
+            await startCamera();
+        });
+
+        elements.stopBtn.addEventListener('click', () => {
+            stopCamera();
+        });
+
+        // ============ INITIALIZATION ============
+        (function init() {
+            console.log('🚀 Gesture Recognition Client Starting...');
+            console.log('Server URL:', state.serverUrl);
+
+            // Connect to server
+            connectToServer();
+
+            // Update server URL display
+            elements.serverUrl.textContent = state.serverUrl;
+        })();
+    </script>
+</body>
+</html>
