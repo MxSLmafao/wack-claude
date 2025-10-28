@@ -29,7 +29,7 @@ A comprehensive web application that uses computer vision to detect hand gesture
 ## Features
 
 ### Hand Gesture Recognition (6 gestures)
-- ✈️ **Airplane** - Fingers spread wide with palm open
+- ✈️ **Airplane** - Thumb, middle, and pinky up (index and ring folded)
 - 👍 **Thumbs Up** - Classic thumbs up gesture
 - ✌️ **Peace Sign** - Victory/peace sign with two fingers
 - 👊 **Fist** - Closed fist gesture

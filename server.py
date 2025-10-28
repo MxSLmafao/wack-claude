@@ -196,28 +196,21 @@ class GestureDetector:
                 type='hand'
             )
 
-        # OPEN PALM vs AIRPLANE: All four fingers extended
+        # AIRPLANE: Thumb, middle, and pinky extended (index and ring folded)
+        if thumb_extended and not index_extended and middle_extended and not ring_extended and pinky_extended:
+            return Detection(
+                emoji=GESTURES['AIRPLANE']['emoji'],
+                label=GESTURES['AIRPLANE']['label'],
+                confidence=0.91,
+                type='hand'
+            )
+
+        # OPEN PALM: All four fingers extended
         if index_extended and middle_extended and ring_extended and pinky_extended:
             # Measure the span from index to pinky
             hand_span = GestureDetector.distance(index_tip, pinky_tip)
 
-            # Check if fingers are spread wide
-            fingers_spread = (
-                GestureDetector.distance(index_tip, middle_tip) > 0.03 and
-                GestureDetector.distance(middle_tip, ring_tip) > 0.025 and
-                GestureDetector.distance(ring_tip, pinky_tip) > 0.03
-            )
-
-            # AIRPLANE: Wide spread with thumb extended and fingers splayed
-            if hand_span > 0.18 and fingers_spread and thumb_extended:
-                return Detection(
-                    emoji=GESTURES['AIRPLANE']['emoji'],
-                    label=GESTURES['AIRPLANE']['label'],
-                    confidence=0.89,
-                    type='hand'
-                )
-
-            # OPEN PALM: All fingers up but less spread
+            # OPEN PALM: All fingers up
             if hand_span > 0.12:
                 return Detection(
                     emoji=GESTURES['OPEN_PALM']['emoji'],
