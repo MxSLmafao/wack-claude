@@ -28,20 +28,21 @@ mp_drawing = mp.solutions.drawing_utils
 mp_drawing_styles = mp.solutions.drawing_styles
 
 # Global MediaPipe instances
+# Using static_image_mode=True because we process independent frames from WebSocket
 hands = mp_hands.Hands(
-    static_image_mode=False,
+    static_image_mode=True,  # True for independent frame processing
     max_num_hands=2,
     model_complexity=1,
     min_detection_confidence=0.5,  # Lowered for better detection
-    min_tracking_confidence=0.5     # Lowered for smoother tracking
+    min_tracking_confidence=0.5     # Not used in static mode, but kept for consistency
 )
 
 face_mesh = mp_face_mesh.FaceMesh(
-    static_image_mode=False,
+    static_image_mode=True,  # True for independent frame processing
     max_num_faces=1,
     refine_landmarks=True,
     min_detection_confidence=0.5,  # Lowered for better detection
-    min_tracking_confidence=0.5     # Lowered for smoother tracking
+    min_tracking_confidence=0.5     # Not used in static mode, but kept for consistency
 )
 
 # Gesture and Expression Definitions
