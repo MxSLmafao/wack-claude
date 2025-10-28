@@ -1,0 +1,1089 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-Time Gesture & Expression Recognition</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-tertiary: #334155;
+            --text-primary: #f1f5f9;
+            --text-secondary: #cbd5e1;
+            --accent: #3b82f6;
+            --accent-hover: #2563eb;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --error: #ef4444;
+            --border: #475569;
+        }
+
+        [data-theme="light"] {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8fafc;
+            --bg-tertiary: #e2e8f0;
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --border: #cbd5e1;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            transition: background 0.3s, color 0.3s;
+        }
+
+        header {
+            background: var(--bg-secondary);
+            padding: 1.5rem 2rem;
+            border-bottom: 2px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-title {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        h1 {
+            font-size: 1.75rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent), var(--success));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .theme-toggle {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.5rem;
+            transition: all 0.3s;
+        }
+
+        .theme-toggle:hover {
+            background: var(--accent);
+            transform: scale(1.05);
+        }
+
+        .container {
+            display: flex;
+            flex: 1;
+            gap: 2rem;
+            padding: 2rem;
+            max-width: 1800px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .camera-section {
+            flex: 0 0 640px;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .video-container {
+            position: relative;
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        #webcam {
+            width: 100%;
+            height: auto;
+            display: block;
+            transform: scaleX(-1);
+        }
+
+        #canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            transform: scaleX(-1);
+        }
+
+        .controls {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        button {
+            flex: 1;
+            min-width: 150px;
+            padding: 0.875rem 1.5rem;
+            font-size: 1rem;
+            font-weight: 600;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .btn-start {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-start:hover {
+            background: #059669;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+        }
+
+        .btn-stop {
+            background: var(--error);
+            color: white;
+        }
+
+        .btn-stop:hover {
+            background: #dc2626;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .results-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .card {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            padding: 1.5rem;
+            border: 1px solid var(--border);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .card-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: var(--accent);
+        }
+
+        .detection-display {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1.5rem;
+            padding: 2rem;
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            min-height: 300px;
+            justify-content: center;
+        }
+
+        .detection-emoji {
+            font-size: 8rem;
+            animation: scaleIn 0.3s ease-out;
+            filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.2));
+        }
+
+        @keyframes scaleIn {
+            from {
+                transform: scale(0.8);
+                opacity: 0;
+            }
+            to {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        .detection-label {
+            font-size: 1.5rem;
+            font-weight: 700;
+            text-align: center;
+        }
+
+        .detection-confidence {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            width: 100%;
+            max-width: 300px;
+        }
+
+        .confidence-bar {
+            flex: 1;
+            height: 8px;
+            background: var(--bg-primary);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .confidence-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--success), var(--accent));
+            transition: width 0.3s ease;
+            border-radius: 4px;
+        }
+
+        .confidence-value {
+            font-weight: 600;
+            min-width: 50px;
+            text-align: right;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+
+        .status-loading {
+            background: rgba(245, 158, 11, 0.2);
+            color: var(--warning);
+        }
+
+        .status-ready {
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--success);
+        }
+
+        .status-error {
+            background: rgba(239, 68, 68, 0.2);
+            color: var(--error);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .history-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .history-item {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 0.75rem;
+            background: var(--bg-tertiary);
+            border-radius: 6px;
+            transition: transform 0.2s;
+        }
+
+        .history-item:hover {
+            transform: translateX(5px);
+        }
+
+        .history-emoji {
+            font-size: 2rem;
+        }
+
+        .history-details {
+            flex: 1;
+        }
+
+        .history-name {
+            font-weight: 600;
+        }
+
+        .history-time {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+        }
+
+        .stat-item {
+            background: var(--bg-tertiary);
+            padding: 1rem;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        .stat-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-top: 0.25rem;
+        }
+
+        .loading-spinner {
+            border: 3px solid var(--bg-tertiary);
+            border-top: 3px solid var(--accent);
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .instructions {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(16, 185, 129, 0.1));
+            border-left: 4px solid var(--accent);
+            padding: 1rem;
+            border-radius: 8px;
+        }
+
+        .instructions h3 {
+            margin-bottom: 0.5rem;
+            color: var(--accent);
+        }
+
+        .instructions ul {
+            margin-left: 1.5rem;
+            color: var(--text-secondary);
+        }
+
+        .instructions li {
+            margin: 0.25rem 0;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 1200px) {
+            .container {
+                flex-direction: column;
+            }
+
+            .camera-section {
+                flex: 1;
+                max-width: 100%;
+            }
+        }
+
+        @media (max-width: 768px) {
+            header {
+                padding: 1rem;
+            }
+
+            h1 {
+                font-size: 1.25rem;
+            }
+
+            .container {
+                padding: 1rem;
+                gap: 1rem;
+            }
+
+            .controls {
+                flex-direction: column;
+            }
+
+            button {
+                min-width: 100%;
+            }
+
+            .detection-emoji {
+                font-size: 5rem;
+            }
+        }
+
+        /* Scrollbar Styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-tertiary);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--accent);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--accent-hover);
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="header-title">
+            <h1>🎭 Real-Time Gesture & Expression Recognition</h1>
+        </div>
+        <button class="theme-toggle" id="themeToggle" title="Toggle theme">🌙</button>
+    </header>
+
+    <div class="container">
+        <div class="camera-section">
+            <div class="video-container">
+                <video id="webcam" autoplay playsinline></video>
+                <canvas id="canvas"></canvas>
+            </div>
+
+            <div class="controls">
+                <button class="btn-start" id="startBtn">
+                    <span>▶</span> Start Detection
+                </button>
+                <button class="btn-stop" id="stopBtn" disabled>
+                    <span>⏹</span> Stop Detection
+                </button>
+            </div>
+
+            <div class="card instructions">
+                <h3>📋 Instructions</h3>
+                <ul>
+                    <li><strong>Hand Gestures:</strong> Show airplane ✈️, thumbs up 👍, peace ✌️, fist 👊, or open palm 🖐️</li>
+                    <li><strong>Expressions:</strong> Smile 😊, stick tongue out 😛, look surprised 😮, wink 😉, or frown 😠</li>
+                    <li><strong>Tip:</strong> Keep your hand and face clearly visible in good lighting</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="results-section">
+            <div class="card">
+                <div class="card-title">Current Detection</div>
+                <div class="detection-display">
+                    <div id="statusIndicator" class="status-indicator status-loading">
+                        <div class="status-dot"></div>
+                        <span id="statusText">Initializing...</span>
+                    </div>
+                    <div id="detectionEmoji" class="detection-emoji">👋</div>
+                    <div id="detectionLabel" class="detection-label">Ready to detect!</div>
+                    <div class="detection-confidence">
+                        <div class="confidence-bar">
+                            <div class="confidence-fill" id="confidenceFill" style="width: 0%"></div>
+                        </div>
+                        <span class="confidence-value" id="confidenceValue">0%</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Statistics</div>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-value" id="totalDetections">0</div>
+                        <div class="stat-label">Total Detections</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="fpsCounter">0</div>
+                        <div class="stat-label">FPS</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="handDetections">0</div>
+                        <div class="stat-label">Hand Gestures</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="faceDetections">0</div>
+                        <div class="stat-label">Expressions</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Detection History</div>
+                <div class="history-list" id="historyList">
+                    <div style="text-align: center; color: var(--text-secondary); padding: 2rem;">
+                        No detections yet. Start the camera to begin!
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MediaPipe Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+
+    <script>
+        // ============ APPLICATION STATE ============
+        const state = {
+            isRunning: false,
+            currentDetection: null,
+            detectionHistory: [],
+            stats: {
+                total: 0,
+                hands: 0,
+                faces: 0,
+                fps: 0
+            },
+            lastDetectionTime: 0,
+            debounceDelay: 500, // ms
+            fpsHistory: [],
+            lastFrameTime: performance.now()
+        };
+
+        // ============ GESTURE & EXPRESSION MAPPINGS ============
+        const GESTURES = {
+            AIRPLANE: { emoji: '✈️', label: 'Airplane Gesture' },
+            THUMBS_UP: { emoji: '👍', label: 'Thumbs Up' },
+            PEACE: { emoji: '✌️', label: 'Peace Sign' },
+            FIST: { emoji: '👊', label: 'Fist' },
+            OPEN_PALM: { emoji: '🖐️', label: 'Open Palm' },
+            LOVE_YOU: { emoji: '🤟', label: 'Love You Sign' }
+        };
+
+        const EXPRESSIONS = {
+            TONGUE_OUT: { emoji: '😛', label: 'Tongue Out' },
+            SMILE: { emoji: '😊', label: 'Smiling' },
+            SURPRISED: { emoji: '😮', label: 'Surprised' },
+            ANGRY: { emoji: '😠', label: 'Angry' },
+            WINK: { emoji: '😉', label: 'Winking' }
+        };
+
+        // ============ DOM ELEMENTS ============
+        const elements = {
+            webcam: document.getElementById('webcam'),
+            canvas: document.getElementById('canvas'),
+            startBtn: document.getElementById('startBtn'),
+            stopBtn: document.getElementById('stopBtn'),
+            themeToggle: document.getElementById('themeToggle'),
+            statusIndicator: document.getElementById('statusIndicator'),
+            statusText: document.getElementById('statusText'),
+            detectionEmoji: document.getElementById('detectionEmoji'),
+            detectionLabel: document.getElementById('detectionLabel'),
+            confidenceFill: document.getElementById('confidenceFill'),
+            confidenceValue: document.getElementById('confidenceValue'),
+            historyList: document.getElementById('historyList'),
+            totalDetections: document.getElementById('totalDetections'),
+            fpsCounter: document.getElementById('fpsCounter'),
+            handDetections: document.getElementById('handDetections'),
+            faceDetections: document.getElementById('faceDetections')
+        };
+
+        let canvasCtx, camera, hands, faceMesh;
+
+        // ============ MEDIAPIPE INITIALIZATION ============
+        async function initializeMediaPipe() {
+            try {
+                updateStatus('loading', 'Initializing MediaPipe...');
+
+                // Initialize Hands
+                hands = new Hands({
+                    locateFile: (file) => {
+                        return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+                    }
+                });
+
+                hands.setOptions({
+                    maxNumHands: 2,
+                    modelComplexity: 1,
+                    minDetectionConfidence: 0.7,
+                    minTrackingConfidence: 0.7
+                });
+
+                hands.onResults(onHandResults);
+
+                // Initialize Face Mesh
+                faceMesh = new FaceMesh({
+                    locateFile: (file) => {
+                        return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
+                    }
+                });
+
+                faceMesh.setOptions({
+                    maxNumFaces: 1,
+                    refineLandmarks: true,
+                    minDetectionConfidence: 0.7,
+                    minTrackingConfidence: 0.7
+                });
+
+                faceMesh.onResults(onFaceResults);
+
+                updateStatus('ready', 'Ready to start!');
+                return true;
+            } catch (error) {
+                console.error('MediaPipe initialization error:', error);
+                updateStatus('error', 'Failed to initialize. Please refresh.');
+                return false;
+            }
+        }
+
+        // ============ CAMERA SETUP ============
+        async function startCamera() {
+            try {
+                updateStatus('loading', 'Starting camera...');
+
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 },
+                        facingMode: 'user'
+                    }
+                });
+
+                elements.webcam.srcObject = stream;
+
+                await new Promise((resolve) => {
+                    elements.webcam.onloadedmetadata = resolve;
+                });
+
+                // Setup canvas
+                const videoWidth = elements.webcam.videoWidth;
+                const videoHeight = elements.webcam.videoHeight;
+                elements.canvas.width = videoWidth;
+                elements.canvas.height = videoHeight;
+                canvasCtx = elements.canvas.getContext('2d');
+
+                state.isRunning = true;
+                elements.startBtn.disabled = true;
+                elements.stopBtn.disabled = false;
+
+                updateStatus('ready', 'Detecting...');
+
+                // Start detection loop
+                processFrame();
+
+                return true;
+            } catch (error) {
+                console.error('Camera error:', error);
+                updateStatus('error', 'Camera access denied');
+                return false;
+            }
+        }
+
+        function stopCamera() {
+            state.isRunning = false;
+
+            if (elements.webcam.srcObject) {
+                elements.webcam.srcObject.getTracks().forEach(track => track.stop());
+                elements.webcam.srcObject = null;
+            }
+
+            elements.startBtn.disabled = false;
+            elements.stopBtn.disabled = true;
+
+            updateStatus('ready', 'Stopped');
+        }
+
+        // ============ FRAME PROCESSING ============
+        let handResultsCache = null;
+        let faceResultsCache = null;
+
+        async function processFrame() {
+            if (!state.isRunning) return;
+
+            // Calculate FPS
+            const currentTime = performance.now();
+            const deltaTime = currentTime - state.lastFrameTime;
+            const fps = Math.round(1000 / deltaTime);
+            state.fpsHistory.push(fps);
+            if (state.fpsHistory.length > 10) state.fpsHistory.shift();
+            state.stats.fps = Math.round(state.fpsHistory.reduce((a, b) => a + b) / state.fpsHistory.length);
+            state.lastFrameTime = currentTime;
+            elements.fpsCounter.textContent = state.stats.fps;
+
+            // Clear canvas
+            canvasCtx.clearRect(0, 0, elements.canvas.width, elements.canvas.height);
+
+            // Process with both MediaPipe models
+            try {
+                await Promise.all([
+                    hands.send({ image: elements.webcam }),
+                    faceMesh.send({ image: elements.webcam })
+                ]);
+
+                // Combine results and detect
+                combineAndDetect();
+            } catch (error) {
+                console.error('Processing error:', error);
+            }
+
+            requestAnimationFrame(processFrame);
+        }
+
+        function onHandResults(results) {
+            handResultsCache = results;
+
+            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                // Draw hand landmarks
+                for (const landmarks of results.multiHandLandmarks) {
+                    drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, {
+                        color: '#00FF00',
+                        lineWidth: 2
+                    });
+                    drawLandmarks(canvasCtx, landmarks, {
+                        color: '#FF0000',
+                        lineWidth: 1,
+                        radius: 3
+                    });
+                }
+            }
+        }
+
+        function onFaceResults(results) {
+            faceResultsCache = results;
+
+            if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
+                // Draw face mesh (only key points for performance)
+                for (const landmarks of results.multiFaceLandmarks) {
+                    drawConnectors(canvasCtx, landmarks, FACEMESH_TESSELATION, {
+                        color: '#C0C0C070',
+                        lineWidth: 1
+                    });
+                }
+            }
+        }
+
+        function combineAndDetect() {
+            let detection = null;
+            let confidence = 0;
+
+            // Check hand gestures first
+            if (handResultsCache?.multiHandLandmarks) {
+                for (let i = 0; i < handResultsCache.multiHandLandmarks.length; i++) {
+                    const landmarks = handResultsCache.multiHandLandmarks[i];
+                    const handedness = handResultsCache.multiHandedness?.[i];
+
+                    const gestureResult = detectHandGesture(landmarks, handedness);
+                    if (gestureResult && gestureResult.confidence > confidence) {
+                        detection = gestureResult;
+                        confidence = gestureResult.confidence;
+                    }
+                }
+            }
+
+            // Check facial expressions
+            if (faceResultsCache?.multiFaceLandmarks) {
+                for (const landmarks of faceResultsCache.multiFaceLandmarks) {
+                    const expressionResult = detectFacialExpression(landmarks);
+                    if (expressionResult && expressionResult.confidence > confidence) {
+                        detection = expressionResult;
+                        confidence = expressionResult.confidence;
+                    }
+                }
+            }
+
+            // Update display if new detection found
+            if (detection && confidence > 0.7) {
+                const now = Date.now();
+                if (now - state.lastDetectionTime > state.debounceDelay) {
+                    updateDetection(detection.type, detection.data, confidence);
+                    state.lastDetectionTime = now;
+                }
+            }
+        }
+
+        // ============ HAND GESTURE DETECTION ALGORITHMS ============
+        function detectHandGesture(landmarks, handedness) {
+            // Extract key landmarks
+            const thumb_tip = landmarks[4];
+            const thumb_ip = landmarks[3];
+            const index_tip = landmarks[8];
+            const index_pip = landmarks[6];
+            const middle_tip = landmarks[12];
+            const middle_pip = landmarks[10];
+            const ring_tip = landmarks[16];
+            const ring_pip = landmarks[14];
+            const pinky_tip = landmarks[20];
+            const pinky_pip = landmarks[18];
+            const wrist = landmarks[0];
+
+            // Helper function to check if finger is extended
+            function isFingerExtended(tip, pip) {
+                return tip.y < pip.y - 0.02;
+            }
+
+            // Helper function to calculate distance
+            function distance(p1, p2) {
+                return Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
+            }
+
+            // Check each gesture
+            const fingerStates = {
+                thumb: thumb_tip.x < thumb_ip.x - 0.02 || thumb_tip.x > thumb_ip.x + 0.02,
+                index: isFingerExtended(index_tip, index_pip),
+                middle: isFingerExtended(middle_tip, middle_pip),
+                ring: isFingerExtended(ring_tip, ring_pip),
+                pinky: isFingerExtended(pinky_tip, pinky_pip)
+            };
+
+            // THUMBS UP: Only thumb extended, others down
+            if (fingerStates.thumb && thumb_tip.y < wrist.y &&
+                !fingerStates.index && !fingerStates.middle && !fingerStates.ring && !fingerStates.pinky) {
+                return {
+                    type: 'hand',
+                    data: GESTURES.THUMBS_UP,
+                    confidence: 0.95
+                };
+            }
+
+            // PEACE SIGN: Index and middle extended, others down
+            if (fingerStates.index && fingerStates.middle &&
+                !fingerStates.ring && !fingerStates.pinky) {
+                return {
+                    type: 'hand',
+                    data: GESTURES.PEACE,
+                    confidence: 0.92
+                };
+            }
+
+            // LOVE YOU SIGN: Thumb, index, and pinky extended
+            if (fingerStates.thumb && fingerStates.index && fingerStates.pinky &&
+                !fingerStates.middle && !fingerStates.ring) {
+                return {
+                    type: 'hand',
+                    data: GESTURES.LOVE_YOU,
+                    confidence: 0.90
+                };
+            }
+
+            // OPEN PALM: All fingers extended and spread
+            if (fingerStates.index && fingerStates.middle && fingerStates.ring && fingerStates.pinky) {
+                const spread = distance(index_tip, pinky_tip);
+                if (spread > 0.15) {
+                    return {
+                        type: 'hand',
+                        data: GESTURES.OPEN_PALM,
+                        confidence: 0.88
+                    };
+                }
+                // AIRPLANE: Similar to open palm but with specific orientation
+                if (spread > 0.2 && fingerStates.thumb) {
+                    return {
+                        type: 'hand',
+                        data: GESTURES.AIRPLANE,
+                        confidence: 0.85
+                    };
+                }
+            }
+
+            // FIST: All fingers down
+            if (!fingerStates.index && !fingerStates.middle && !fingerStates.ring && !fingerStates.pinky) {
+                return {
+                    type: 'hand',
+                    data: GESTURES.FIST,
+                    confidence: 0.90
+                };
+            }
+
+            return null;
+        }
+
+        // ============ FACIAL EXPRESSION DETECTION ALGORITHMS ============
+        function detectFacialExpression(landmarks) {
+            // Key facial landmarks
+            const leftEye = landmarks[33];
+            const rightEye = landmarks[263];
+            const leftEyeTop = landmarks[159];
+            const leftEyeBottom = landmarks[145];
+            const rightEyeTop = landmarks[386];
+            const rightEyeBottom = landmarks[374];
+            const leftMouth = landmarks[61];
+            const rightMouth = landmarks[291];
+            const topLip = landmarks[13];
+            const bottomLip = landmarks[14];
+            const leftEyebrow = landmarks[70];
+            const rightEyebrow = landmarks[300];
+            const noseTip = landmarks[1];
+            const tongueArea = landmarks[13]; // Approximate tongue area
+
+            // Helper function
+            function distance(p1, p2) {
+                return Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2) + Math.pow(p1.z - p2.z, 2));
+            }
+
+            // Calculate metrics
+            const leftEyeHeight = distance(leftEyeTop, leftEyeBottom);
+            const rightEyeHeight = distance(rightEyeTop, rightEyeBottom);
+            const mouthWidth = distance(leftMouth, rightMouth);
+            const mouthHeight = distance(topLip, bottomLip);
+            const mouthAspectRatio = mouthHeight / mouthWidth;
+
+            // WINKING: One eye significantly smaller than the other
+            const eyeRatio = Math.abs(leftEyeHeight - rightEyeHeight) / Math.max(leftEyeHeight, rightEyeHeight);
+            if (eyeRatio > 0.3) {
+                return {
+                    type: 'face',
+                    data: EXPRESSIONS.WINK,
+                    confidence: 0.88
+                };
+            }
+
+            // SURPRISED: Large mouth opening and wide eyes
+            if (mouthAspectRatio > 0.35 && leftEyeHeight > 0.015 && rightEyeHeight > 0.015) {
+                return {
+                    type: 'face',
+                    data: EXPRESSIONS.SURPRISED,
+                    confidence: 0.90
+                };
+            }
+
+            // TONGUE OUT: Large mouth opening with specific shape
+            if (mouthAspectRatio > 0.3 && bottomLip.y > topLip.y + 0.02) {
+                return {
+                    type: 'face',
+                    data: EXPRESSIONS.TONGUE_OUT,
+                    confidence: 0.85
+                };
+            }
+
+            // SMILE: Wide mouth, upturned corners
+            if (mouthWidth > 0.12 && mouthAspectRatio < 0.25) {
+                if (leftMouth.y < noseTip.y && rightMouth.y < noseTip.y) {
+                    return {
+                        type: 'face',
+                        data: EXPRESSIONS.SMILE,
+                        confidence: 0.87
+                    };
+                }
+            }
+
+            // ANGRY: Eyebrows lowered, mouth compressed
+            const eyebrowsLowered = (leftEyebrow.y > leftEye.y - 0.02) && (rightEyebrow.y > rightEye.y - 0.02);
+            if (eyebrowsLowered && mouthAspectRatio < 0.15) {
+                return {
+                    type: 'face',
+                    data: EXPRESSIONS.ANGRY,
+                    confidence: 0.82
+                };
+            }
+
+            return null;
+        }
+
+        // ============ UI UPDATE FUNCTIONS ============
+        function updateDetection(type, data, confidence) {
+            state.currentDetection = { type, data, confidence, timestamp: Date.now() };
+
+            // Update display
+            elements.detectionEmoji.textContent = data.emoji;
+            elements.detectionLabel.textContent = data.label;
+            elements.confidenceFill.style.width = `${confidence * 100}%`;
+            elements.confidenceValue.textContent = `${Math.round(confidence * 100)}%`;
+
+            // Update stats
+            state.stats.total++;
+            if (type === 'hand') state.stats.hands++;
+            if (type === 'face') state.stats.faces++;
+
+            elements.totalDetections.textContent = state.stats.total;
+            elements.handDetections.textContent = state.stats.hands;
+            elements.faceDetections.textContent = state.stats.faces;
+
+            // Add to history
+            addToHistory(data, confidence);
+        }
+
+        function addToHistory(data, confidence) {
+            const historyItem = {
+                emoji: data.emoji,
+                label: data.label,
+                confidence: confidence,
+                timestamp: new Date().toLocaleTimeString()
+            };
+
+            state.detectionHistory.unshift(historyItem);
+            if (state.detectionHistory.length > 10) state.detectionHistory.pop();
+
+            renderHistory();
+        }
+
+        function renderHistory() {
+            if (state.detectionHistory.length === 0) {
+                elements.historyList.innerHTML = `
+                    <div style="text-align: center; color: var(--text-secondary); padding: 2rem;">
+                        No detections yet. Start the camera to begin!
+                    </div>
+                `;
+                return;
+            }
+
+            elements.historyList.innerHTML = state.detectionHistory.map(item => `
+                <div class="history-item">
+                    <div class="history-emoji">${item.emoji}</div>
+                    <div class="history-details">
+                        <div class="history-name">${item.label}</div>
+                        <div class="history-time">${item.timestamp} • ${Math.round(item.confidence * 100)}% confidence</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function updateStatus(status, text) {
+            elements.statusIndicator.className = `status-indicator status-${status}`;
+            elements.statusText.textContent = text;
+        }
+
+        // ============ THEME TOGGLE ============
+        elements.themeToggle.addEventListener('click', () => {
+            const currentTheme = document.body.getAttribute('data-theme');
+            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+            document.body.setAttribute('data-theme', newTheme);
+            elements.themeToggle.textContent = newTheme === 'light' ? '🌙' : '☀️';
+        });
+
+        // ============ EVENT LISTENERS ============
+        elements.startBtn.addEventListener('click', async () => {
+            if (!hands || !faceMesh) {
+                const initialized = await initializeMediaPipe();
+                if (!initialized) return;
+            }
+            await startCamera();
+        });
+
+        elements.stopBtn.addEventListener('click', () => {
+            stopCamera();
+        });
+
+        // ============ INITIALIZATION ============
+        (async function init() {
+            console.log('🚀 Gesture & Expression Recognition App Starting...');
+            await initializeMediaPipe();
+        })();
+    </script>
+</body>
+</html>
