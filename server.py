@@ -411,8 +411,8 @@ def index():
         </div>
         <h3>Available Endpoints:</h3>
         <ul>
-            <li><strong>WebSocket:</strong> <code>ws://localhost:5000</code></li>
-            <li><strong>HTTP:</strong> <code>http://localhost:5000</code></li>
+            <li><strong>WebSocket:</strong> <code>ws://localhost:4564</code></li>
+            <li><strong>HTTP:</strong> <code>http://localhost:4564</code></li>
         </ul>
         <h3>Next Steps:</h3>
         <ol>
@@ -444,10 +444,10 @@ if __name__ == '__main__':
     print("=" * 60)
     print("🚀 Starting Gesture Recognition Server")
     print("=" * 60)
-    print("Server: http://localhost:5000")
-    print("WebSocket: ws://localhost:5000")
+    print("Server: http://localhost:4564")
+    print("WebSocket: ws://localhost:4564")
     print("Models: MediaPipe Hands + Face Mesh")
     print("=" * 60)
     print("\nPress Ctrl+C to stop the server\n")
 
-    socketio.run(app, host='0.0.0.0', port=5000, debug=True, allow_unsafe_werkzeug=True)
+    socketio.run(app, host='0.0.0.0', port=4564, debug=True, allow_unsafe_werkzeug=True)

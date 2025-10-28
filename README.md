@@ -89,8 +89,8 @@ python server.py
 You should see:
 ```
 🚀 Starting Gesture Recognition Server
-Server: http://localhost:5000
-WebSocket: ws://localhost:5000
+Server: http://localhost:4564
+WebSocket: ws://localhost:4564
 Models: MediaPipe Hands + Face Mesh
 ```
 
@@ -224,7 +224,7 @@ hands = mp_hands.Hands(
 )
 
 # Server settings
-socketio.run(app, host='0.0.0.0', port=5000)
+socketio.run(app, host='0.0.0.0', port=4564)
 ```
 
 ### Client Configuration
@@ -233,7 +233,7 @@ Edit `client.html` to adjust:
 
 ```javascript
 // Server URL
-state.serverUrl = 'http://localhost:5000'
+state.serverUrl = 'http://localhost:4564'
 
 // Camera settings
 {
@@ -364,9 +364,9 @@ pip install -r requirements.txt
 
 **"Address already in use"**
 ```bash
-# Kill process on port 5000
-lsof -ti:5000 | xargs kill -9  # macOS/Linux
-netstat -ano | findstr :5000   # Windows
+# Kill process on port 4564
+lsof -ti:4564 | xargs kill -9  # macOS/Linux
+netstat -ano | findstr :4564   # Windows
 ```
 
 **Server crashes on frame processing**
@@ -379,7 +379,7 @@ netstat -ano | findstr :5000   # Windows
 **"Not connected" status**
 - Ensure server is running (`python server.py`)
 - Check server URL in client matches actual server address
-- Check firewall/antivirus blocking port 5000
+- Check firewall/antivirus blocking port 4564
 - Try different browser (Chrome recommended)
 
 **Camera access denied**
@@ -429,7 +429,7 @@ ipconfig
 
 2. **Update client.html**
 ```javascript
-state.serverUrl = 'http://192.168.1.X:5000'  // Your IP
+state.serverUrl = 'http://192.168.1.X:4564'  // Your IP
 ```
 
 3. **Access from other devices**
@@ -444,7 +444,7 @@ For production use with remote access:
 1. **Use a production WSGI server**
 ```bash
 pip install gunicorn
-gunicorn -k geventwebsocket.gunicorn.workers.GeventWebSocketWorker -w 1 -b 0.0.0.0:5000 server:app
+gunicorn -k geventwebsocket.gunicorn.workers.GeventWebSocketWorker -w 1 -b 0.0.0.0:4564 server:app
 ```
 
 2. **Enable HTTPS** (required for camera access on non-localhost)
@@ -631,10 +631,10 @@ python server.py
 open client.html
 
 # Check if server is running
-curl http://localhost:5000/health
+curl http://localhost:4564/health
 ```
 
 **Default URLs:**
-- Server: `http://localhost:5000`
+- Server: `http://localhost:4564`
 - Client: `file:///.../client.html` or `http://localhost:8000/client.html`
-- WebSocket: `ws://localhost:5000`
+- WebSocket: `ws://localhost:4564`
