@@ -479,8 +479,9 @@ def handle_ping():
 def index():
     """Serve the main client application"""
     try:
-        with open('client.html', 'r') as f:
-            return f.read()
+        with open('client.html', 'r', encoding='utf-8') as f:
+            content = f.read()
+        return content, 200, {'Content-Type': 'text/html; charset=utf-8'}
     except FileNotFoundError:
         return '''
         <html>
@@ -489,7 +490,16 @@ def index():
             <p>Please ensure client.html is in the same directory as server.py</p>
         </body>
         </html>
-        ''', 404
+        ''', 404, {'Content-Type': 'text/html; charset=utf-8'}
+    except Exception as e:
+        return f'''
+        <html>
+        <body style="font-family: Arial; padding: 50px; background: #0f172a; color: #f1f5f9;">
+            <h1>❌ Error loading client</h1>
+            <p>Error: {str(e)}</p>
+        </body>
+        </html>
+        ''', 500, {'Content-Type': 'text/html; charset=utf-8'}
 
 
 @app.route('/status')
