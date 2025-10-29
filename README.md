@@ -36,12 +36,11 @@ A comprehensive web application that uses computer vision to detect hand gesture
 - 🖐️ **Open Palm** - All fingers extended
 - 🤟 **Love You Sign** - ASL "I Love You" sign
 
-### Facial Expression Detection (5 expressions)
+### Facial Expression Detection (4 expressions)
 - 😛 **Tongue Out** - Stick your tongue out
 - 😊 **Smile** - Show a happy smile
 - 😮 **Surprised** - Open mouth expression
-- 😠 **Angry** - Furrowed brows expression
-- 😉 **Winking** - Wink with one eye
+- 😠 **Angry** - Furrowed brows and tight mouth
 
 ### Core Functionality
 - **Real-time Processing** - Server-side MediaPipe at high speed

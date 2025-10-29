@@ -66,8 +66,7 @@ EXPRESSIONS = {
     'TONGUE_OUT': {'emoji': '😛', 'label': 'Tongue Out'},
     'SMILE': {'emoji': '😊', 'label': 'Smiling'},
     'SURPRISED': {'emoji': '😮', 'label': 'Surprised'},
-    'ANGRY': {'emoji': '😠', 'label': 'Angry'},
-    'WINK': {'emoji': '😉', 'label': 'Winking'}
+    'ANGRY': {'emoji': '😠', 'label': 'Angry'}
 }
 
 
@@ -286,19 +285,6 @@ class ExpressionDetector:
         left_ear = left_eye_height / left_eye_width if left_eye_width > 0 else 0
         right_ear = right_eye_height / right_eye_width if right_eye_width > 0 else 0
 
-        # WINKING: One eye closed or significantly smaller
-        eye_height_diff = abs(left_eye_height - right_eye_height)
-        eye_ratio = eye_height_diff / max(left_eye_height, right_eye_height) if max(left_eye_height, right_eye_height) > 0 else 0
-
-        # Improved wink detection - check if one eye is significantly smaller
-        if eye_ratio > 0.4 or (left_ear < 0.15 and right_ear > 0.2) or (right_ear < 0.15 and left_ear > 0.2):
-            return Detection(
-                emoji=EXPRESSIONS['WINK']['emoji'],
-                label=EXPRESSIONS['WINK']['label'],
-                confidence=0.91,
-                type='face'
-            )
-
         # SURPRISED: Large mouth opening with wide eyes
         # Both mouth very open and eyes wide open
         if mouth_aspect_ratio > 0.4 and avg_eye_height > 0.012:
@@ -346,21 +332,29 @@ class ExpressionDetector:
                 type='face'
             )
 
-        # ANGRY: Eyebrows lowered and furrowed, mouth tight or frowning
-        # Check eyebrow positions relative to eyes
-        left_brow_lowered = left_eyebrow_inner.y > left_eye_top.y - 0.015
-        right_brow_lowered = right_eyebrow_inner.y > right_eye_top.y - 0.015
+        # ANGRY: Eyebrows lowered/furrowed and tight mouth
+        # Check if eyebrows are close to eyes (furrowed/lowered)
+        left_eyebrow_to_eye = ExpressionDetector.distance(left_eyebrow_inner, left_eye_top)
+        right_eyebrow_to_eye = ExpressionDetector.distance(right_eyebrow_inner, right_eye_top)
 
-        # Mouth characteristics for anger
-        mouth_tight = mouth_aspect_ratio < 0.12
-        mouth_corners_down = (left_mouth.y > mouth_center_bottom.y - 0.01 and
-                             right_mouth.y > mouth_center_bottom.y - 0.01)
+        # Eyebrows are lowered if they're close to the eyes
+        eyebrows_lowered = left_eyebrow_to_eye < 0.025 or right_eyebrow_to_eye < 0.025
 
-        if (left_brow_lowered and right_brow_lowered) and (mouth_tight or mouth_corners_down):
+        # Alternative check: eyebrow Y position is below normal (greater Y = lower on screen)
+        left_brow_low = left_eyebrow_inner.y > left_eye_top.y - 0.03
+        right_brow_low = right_eyebrow_inner.y > right_eye_top.y - 0.03
+
+        # Mouth characteristics for anger: tight or slightly open, not smiling
+        mouth_tight = mouth_aspect_ratio < 0.15
+        mouth_not_smiling = not (left_mouth.y < mouth_center_bottom.y - 0.005 and
+                                  right_mouth.y < mouth_center_bottom.y - 0.005)
+
+        # Detect angry: lowered eyebrows AND tight/neutral mouth
+        if (eyebrows_lowered or (left_brow_low and right_brow_low)) and mouth_tight and mouth_not_smiling:
             return Detection(
                 emoji=EXPRESSIONS['ANGRY']['emoji'],
                 label=EXPRESSIONS['ANGRY']['label'],
-                confidence=0.85,
+                confidence=0.88,
                 type='face'
             )
 
@@ -556,7 +550,7 @@ def status():
         <h3>Detection Capabilities:</h3>
         <ul>
             <li>✈️ Airplane, 👍 Thumbs Up, ✌️ Peace, 👊 Fist, 🖐️ Open Palm, 🤟 Love You</li>
-            <li>😛 Tongue Out, 😊 Smile, 😮 Surprised, 😠 Angry, 😉 Wink</li>
+            <li>😛 Tongue Out, 😊 Smile, 😮 Surprised, 😠 Angry</li>
         </ul>
     </body>
     </html>
